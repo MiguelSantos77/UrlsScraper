@@ -10,54 +10,125 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
+import java.io.File;
 import java.util.List;
-import java.util.Set;
 
 public class Main extends JFrame {
 
-    public List<String> Emails = new ArrayList<>();
-    public List<String> Numeros = new ArrayList<>();
     public XmlHelper.Links LinksXml;
+    public XmlHelper.Infos InfosXml;
     public Main() {
         LinksXml= new XmlHelper.Links();
+        InfosXml= new XmlHelper.Infos();
+
 
 
         setTitle("Web Scraper");
         setSize(600, 400);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        refreshUi();
+    }
 
-        JTextField textField = new JTextField(16);
-        textField.setText("http://jaxen.codehaus.org");
-        JButton scrapeButton = new JButton("Scrape");
-        scrapeButton.addActionListener(new ActionListener() {
+    private void  refreshUi(){
+
+        JButton scrapeBtn = new JButton();
+
+        JPanel initialUrlPanel = new JPanel();
+        Thread thread = new Thread(this::scrape);
+
+        JTextField initialUrlTF = new JTextField(16);
+        try{
+
+
+            if (LinksXml.size()>0){
+                scrapeBtn.setText("Continuar Scraping");
+                initialUrlPanel.setVisible(false);
+            }
+            else {
+                scrapeBtn.setText("Começar Scraping");
+                initialUrlPanel.setVisible(true);
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        JButton stopBtn = new JButton("Parar");
+        stopBtn.setEnabled(false);
+        stopBtn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                String initialUrl = textField.getText();
-                LinksXml.save(initialUrl);
-                scrape();
+                stopBtn.setEnabled(false);
+                scrapeBtn.setEnabled(true);
+                try {
+                    thread.join();
+                } catch (InterruptedException ex) {
+                    throw new RuntimeException(ex);
+                }
+
+            }
+        });
+        JButton exportBtn = new JButton("Exportar");
+        JButton addUrlBtn = new JButton("Adicionar Url");
+        JButton cleanDataBtn = new JButton("Limpar Todos os Dados");
+
+
+        scrapeBtn.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+
+                String url = initialUrlTF.getText();
+                if (!url.startsWith("https://")){
+                    url = "https://"+url;
+                }
+                if (!Extractor.extractUrls(url).isEmpty()){
+                    LinksXml.save(url);
+                    System.out.println("printed URL");
+                };
+                scrapeBtn.setEnabled(false);
+                stopBtn.setEnabled(true);
+                thread.start();
             }
         });
 
-        String[] columnNames = {"URL", "Emails", "Telefones"};
-        Object[][] data = new Object[0][];
-        JTable table = new JTable(data, columnNames);
+        cleanDataBtn.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                File file = new File("info.xml");
+                file.delete();
+                file = new File("links.xml");
+                file.delete();
+                LinksXml= new XmlHelper.Links();
+                InfosXml= new XmlHelper.Infos();
+                refreshUi();
+            }
+        });
+        JPanel buttonsPannel = new JPanel();
+        buttonsPannel.add(scrapeBtn);
+        buttonsPannel.add(stopBtn);
+        buttonsPannel.add(exportBtn);
+        buttonsPannel.add(addUrlBtn);
+        buttonsPannel.add(cleanDataBtn);
 
-        JScrollPane scrollPane = new JScrollPane(table);
+
+
+        JLabel initialUrlLb = new JLabel("Url Inicial:");
+
+
+        initialUrlPanel.add(initialUrlLb);
+        initialUrlPanel.add(initialUrlTF);
 
         setLayout(new BorderLayout());
-        add(textField, BorderLayout.SOUTH);
-        add(scrapeButton, BorderLayout.NORTH);
-        add(scrollPane, BorderLayout.CENTER);
+
+        add(buttonsPannel, BorderLayout.NORTH);
+        add(initialUrlPanel, BorderLayout.WEST);
     }
 
 
 
     private void scrape(){
+
         WebDriverManager.chromedriver().setup();
         ChromeOptions options = new ChromeOptions();
-        //options.addArguments("--headless");
+        options.addArguments("--headless");
         options.addArguments("--start-maximized");
         options.addArguments("--log-level=3");
         options.addArguments("--output=/dev/null");
@@ -68,59 +139,47 @@ public class Main extends JFrame {
 
 
         do{
+            Link link = LinksXml.getNotVisited();
 
-            Link link = LinksXml.getNotVisitedUrl();
-            if (link.getUrl().equals("") || link.getUrl()==null){
+            if (link.getUrl()==null){
                 System.out.println("Sem links para Scrape");
+                driver.quit();
                 break;
             }
 
-            if (link.getUrl() != null || !link.getUrl().isEmpty())
-            {
-
-                try{
-                    Thread.sleep(5000,0);
-                    System.out.println("Url: " + link.getUrl());
-                    driver.get(link.getUrl());
-                    extractData(driver.getPageSource(), link);
+            try{
+                Thread.sleep(5000,0);
+                System.out.println("Url: " + link.getUrl());
+                driver.get(link.getUrl());
+                extractData(driver.getPageSource(), link);
 
 
-                }catch (Exception e){
-                    System.out.println("Erro ao Entrar no Site");
-                }
-                LinksXml.markAsVisited(link);
+            }catch (Exception e){
+                System.out.println("Erro ao Entrar no Site");
             }
+            LinksXml.markAsVisited(link);
+
 
         }while (true);
 
 
     }
 
-
-
-
-
-
-
-
-    private void extractData(String html, Link link) throws IOException {
+    private void extractData(String html, Link link){
 
 
         List<String> LinksExtraidos = Extractor.extractUrls(html);
         for (String url:LinksExtraidos) {
             LinksXml.save(url);
-
         }
 
         List<String> EmailsExtraidos= Extractor.extractEmails(html);
         for (String email: EmailsExtraidos ) {
-            if (Emails.contains(email))
-                Emails.add(email);
+            InfosXml.save("email",link.getId() ,email);
         }
         List<String> NumerosExtraidos = Extractor.extractNumbers(html);
         for (String numero : NumerosExtraidos){
-            if (Numeros.contains(numero))
-                Numeros.add(numero);
+            InfosXml.save("numero",link.getId() ,numero);
         }
 
     }

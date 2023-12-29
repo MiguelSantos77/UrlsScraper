@@ -9,27 +9,30 @@ public class Extractor {
 
     public static List<String> extractEmails(String sourceCode) {
         List<String> emails = new ArrayList<>();
-        String regex =  "^(?=.{1,64}@)[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*@"
-                + "[^-][A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)*(\\.[A-Za-z]{2,})$";
-        Pattern pattern = Pattern.compile(regex);
+        //https://regex101.com/r/vO2aL0/1
+
+        String regex = "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b";
+        Pattern pattern = Pattern.compile(regex, Pattern.MULTILINE);
         Matcher matcher = pattern.matcher(sourceCode);
 
         while (matcher.find()) {
-            emails.add(matcher.group());
+            emails.add(matcher.group(0));
         }
 
         return emails;
     }
 
     public static List<String> extractNumbers(String sourceCode) {
+
+        // https://regex101.com/library/wZ4uU6?orderBy=RELEVANCE&search=phone
         List<String> phoneNumbers = new ArrayList<>();
-        // Regex para números de telefone nos formatos (123) 456-7890 e 987-654-3210
-        String regex = "\\b\\(?\\d{3}\\)?[-.\\s]?\\d{3}[-.\\s]?\\d{4}\\b";
-        Pattern pattern = Pattern.compile(regex);
-        Matcher matcher = pattern.matcher(sourceCode);
+        final String regex = "(?:([+]\\d{1,4})[-.\\s]?)?(?:[(](\\d{1,3})[)][-.\\s]?)?(\\d{1,4})[-.\\s]?(\\d{1,4})[-.\\s]?(\\d{1,9})";
+        final Pattern pattern = Pattern.compile(regex);
+        final Matcher matcher = pattern.matcher(sourceCode);
 
         while (matcher.find()) {
-            phoneNumbers.add(matcher.group());
+            phoneNumbers.add(matcher.group(0));
+
         }
 
         return phoneNumbers;
@@ -38,7 +41,7 @@ public class Extractor {
 
     public static List<String> extractUrls(String sourceCode) {
         List<String> urlsNotClean = new ArrayList<>();
-        // Regex para números de telefone nos formatos (123) 456-7890 e 987-654-3210
+        // https://stackoverflow.com/questions/3809401/what-is-a-good-regular-expression-to-match-a-url
         String regex = "https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_\\+.~#?&//=]*)";
 
         Pattern pattern = Pattern.compile(regex);
