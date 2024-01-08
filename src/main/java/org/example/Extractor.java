@@ -24,9 +24,10 @@ public class Extractor {
 
     public static List<String> extractNumbers(String sourceCode) {
 
-        // https://regex101.com/library/wZ4uU6?orderBy=RELEVANCE&search=phone
+        // https://www.portugal-a-programar.pt/forums/topic/51048-express%C3%A3o-regular-para-valida%C3%A7%C3%A3o-de-n%C3%BAmeros-de-telefone/
+        //Este Regex Aceita numeros Nacionais Portugueses+´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´
         List<String> phoneNumbers = new ArrayList<>();
-        final String regex = "(?:([+]\\d{1,4})[-.\\s]?)?(?:[(](\\d{1,3})[)][-.\\s]?)?(\\d{1,4})[-.\\s]?(\\d{1,4})[-.\\s]?(\\d{1,9})";
+        final String regex = "9[1236][0-9]{7}|2[1-9][0-9]{7}";
         final Pattern pattern = Pattern.compile(regex);
         final Matcher matcher = pattern.matcher(sourceCode);
 
